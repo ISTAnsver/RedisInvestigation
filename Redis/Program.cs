@@ -28,7 +28,7 @@ namespace Redis
 		{
 			var redis = ConnectionMultiplexer.Connect("localhost");
 			db = redis.GetDatabase();
-			SetExamle();
+			SortedSetExample();
 
 			Console.ReadKey();
 		}
@@ -168,7 +168,7 @@ namespace Redis
 			db.KeyDelete("goods:" + goods.Id);
 		}
 
-		private static void SetExamle()
+		private static void SetExample()
 		{
 			// Список товаров
 			var goods = new []
@@ -288,6 +288,72 @@ namespace Redis
 				// Валим связи
 				db.KeyDelete("trader:" + trader.Id + ":goods");
 			}
+		}
+
+		private static void SortedSetExample()
+		{
+			/*
+			 * Здесь в примере приводится список торговцев,
+			 * который составляет рейтинг продаж (по сумме)
+			 */
+			var traders = new[]
+			{
+				new Trader
+				{
+					Id = 1,
+					Name = "Ашот",
+				},
+				new Trader
+				{
+					Id = 2,
+					Name = "Рамзес"
+				},
+				new Trader
+				{
+					Id = 3,
+					Name = "Альберт"
+				},
+				new Trader
+				{
+					Id = 4,
+					Name = "Ванес"
+				}
+			};
+
+			// То на какую сумму были совершены продажи
+			var scores = new[]
+			{
+				115324.59,
+				95942.44,
+				78524.78,
+				452378.15
+			};
+
+			for (var i = 0; i < 4 && traders.Length == 4 && scores.Length == 4; i++)
+			{
+				db.SortedSetAdd("traders-top", traders[i].Name, scores[i]);
+			}
+			
+			// Хотим знать первые три места
+			var top = db.SortedSetRangeByRankWithScores("traders-top", 0, 2, Order.Descending);
+			Console.WriteLine("Топ 3 продавцов по продажам:");
+			for (var i = 0; i < top.Length; i++)
+			{
+				Console.WriteLine($"{i + 1}-ое место по продажам занимает: {top[i].Element} ({top[i].Score} р.)");
+			}
+
+			Console.Write("\n\n\n");
+
+			// Хотим узнать продавцов которые совершили продажи в диапазоне от 50 т. р. до 100 т. р.
+			var between = db.SortedSetRangeByScore("traders-top", 50000, 100000);
+			Console.WriteLine("Продавцы сделавшие продажи от 50 до 100 тыс. р.");
+			foreach (var trader in between)
+			{
+				Console.WriteLine(trader);
+			}
+
+			// Чистим ключ
+			db.KeyDelete("traders-top");
 		}
 	}
 }
